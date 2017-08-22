@@ -5,6 +5,7 @@ const request = require('request');
 const rp = require('request-promise');
 const pdfExtract = require('pdf-text-extract');
 
+// Helper functions
 const log = console.log;
 const trim = x => x.trim();
 
@@ -64,6 +65,7 @@ Apify.main(() => {
     .finally(() => {
       log('Extracting PDF...')
       const pathToPdf = path.join(__dirname, 'temp.pdf')
+      // pdfExtract function needs to be executed after the pdf file has been correctly saved.
       pdfExtract(pathToPdf, crawlResult);
     });
 
