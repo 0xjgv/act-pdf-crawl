@@ -5,6 +5,7 @@
   "main": "pdf.js",
   "dependencies": {
     "apify": "^0.4.18",
+    "bluebird": "^3.5.0",
     "pdf-text-extract": "^1.5.0",
     "request": "^2.81.0",
     "request-promise": "^4.2.1"

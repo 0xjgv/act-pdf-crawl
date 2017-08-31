@@ -1,15 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
+const Promise = require("bluebird");
 const request = require('request');
 const rp = require('request-promise');
 const pdfExtract = require('pdf-text-extract');
+const targetUrl = process.env.URL;
 
 // Helper functions
 const log = console.log;
 const trim = x => x.trim();
-
-const targetUrl = 'http://www.ripuc.org/utilityinfo/electric/NPP_List.pdf';
 
 Apify.main(() => {
   const options = {
@@ -17,16 +17,19 @@ Apify.main(() => {
     encoding: null
   };
 
-  function crawlResult(err, pages) {
+  function crawlresult(err, pages) {
+    log('extracting pdf...')
     if (err) {
       console.dir(err);
       return;
     }
+
     const allPages = pages[0].split(/\n/g)
       .map(x => x.split(/\s{4,}/g)
         .map(y => y.replace(/\s+/g, ' '))
         .filter(Boolean)
       ).filter(e => e.length);
+
     const info = {
       'Title': allPages[0][0],
       'Number of Registered Companies': allPages.length,
@@ -42,7 +45,7 @@ Apify.main(() => {
       for (j in th) temp[th[j]] = company[j];
       info.Companies.push(temp);
     }
-    
+
     let json = JSON.stringify(info, null, 2);
     const output = {
       crawledAt: new Date(),
@@ -52,24 +55,25 @@ Apify.main(() => {
     console.dir(output);
     Apify.setValue('OUTPUT', output);
     log('Finalizing...');
-    fs.writeFileSync('got.json', json);
   }
 
   return rp(options)
     .then(function(response) {
       log('PDF requested.')
       const buffer = Buffer.from(response);
-      fs.writeFileSync('temp.pdf', buffer);
+      const tmpTarget = 'temp.pdf';
+      fs.writeFileSync(tmpTarget, buffer)
       log('PDF saved.');
+      const pathToPdf = path.join(__dirname, tmpTarget);
+      Promise.promisify(pdfExtract);
+      (async function() {
+        log('Starting PDF extraction...');
+        let json = await pdfExtract(pathToPdf, crawlResult);
+        log(json, 'JSON');
+        return json;
+      })();
     })
     .finally(() => {
-      log('Extracting PDF...')
-      const pathToPdf = path.join(__dirname, 'temp.pdf')
-      // pdfExtract function needs to be executed after the pdf file has been correctly saved.
-      pdfExtract(pathToPdf, crawlResult);
+      console.log('Finished.');
     });
-
-  // let json = await JSON.parse(
-  //   fs.readFileSync('got.json', 'utf8')
-  // );
 });
