@@ -17,8 +17,8 @@ Apify.main(() => {
     encoding: null
   };
 
-  function crawlresult(err, pages) {
-    log('extracting pdf...')
+  function crawlResult(err, pages) {
+    log('Extracting pdf...')
     if (err) {
       console.dir(err);
       return;
@@ -47,14 +47,7 @@ Apify.main(() => {
     }
 
     let json = JSON.stringify(info, null, 2);
-    const output = {
-      crawledAt: new Date(),
-      json,
-    };
-    console.log('My output:');
-    console.dir(output);
-    Apify.setValue('OUTPUT', output);
-    log('Finalizing...');
+    return json;
   }
 
   return rp(options)
@@ -65,13 +58,23 @@ Apify.main(() => {
       fs.writeFileSync(tmpTarget, buffer)
       log('PDF saved.');
       const pathToPdf = path.join(__dirname, tmpTarget);
-      Promise.promisify(pdfExtract);
-      (async function() {
+      const extract = Promise.promisify(pdfExtract);
+      return (async function() {
         log('Starting PDF extraction...');
-        let json = await pdfExtract(pathToPdf, crawlResult);
-        log(json, 'JSON');
+        let json = await extract(pathToPdf);
         return json;
       })();
+    })
+    .then((pages) => {
+      const json = crawlResult(null, pages);
+      const output = {
+        crawledAt: new Date(),
+        json,
+      };
+      console.log('My output:');
+      console.dir(output);
+      Apify.setValue('OUTPUT', output);
+      log('Finalizing...');
     })
     .finally(() => {
       console.log('Finished.');
