@@ -32,8 +32,8 @@ function crawlResult(pages) {
     info.Companies.push(temp);
   }
 
-  // const json = JSON.stringify(info);
-  return json;
+  // const json = JSON.stringify(info); // or return a JSON Object;
+  return info;
 }
 
 Apify.main(async () => {
