@@ -5,78 +5,66 @@ const Promise = require("bluebird");
 const request = require('request');
 const rp = require('request-promise');
 const pdfExtract = require('pdf-text-extract');
-const targetUrl = process.env.URL;
 
 // Helper functions
 const log = console.log;
 const trim = x => x.trim();
 
-Apify.main(() => {
+function crawlResult(pages) {
+  log('Crawling pdf...');
+  const allPages = pages[0].split(/\n/g)
+    .map(x => x.split(/\s{4,}/g)
+      .map(y => y.replace(/\s+/g, ' '))
+      .filter(Boolean)
+    ).filter(e => e.length);
+
+  const info = {
+    'Title': allPages[0][0],
+    'Number of Registered Companies': allPages.length,
+    'Companies': [],
+  };
+  const th = allPages[1].map(trim);
+
+  let company, temp, i, j;
+  for (i = 2; i < allPages.length; i++) {
+    company = allPages[i];
+    temp = {};
+    for (j in th) temp[th[j]] = company[j];
+    info.Companies.push(temp);
+  }
+
+  const json = JSON.stringify(info);
+  return json;
+}
+
+Apify.main(async () => {
+  const { url } = await Apify.getValue('INPUT');
+  log('URL: ' + url);
   const options = {
-    url: targetUrl,
+    url,
     encoding: null
   };
 
-  function crawlResult(err, pages) {
-    log('Extracting pdf...')
-    if (err) {
-      console.dir(err);
-      return;
-    }
+  log('Requesting URL...');
+  const response = await rp(options);
+  const buffer = Buffer.from(response);
+  const tmpTarget = 'temp.pdf';
+  log('Saving file to: ' + tmpTarget);
+  fs.writeFileSync(tmpTarget, buffer)
+  log('File saved.');
 
-    const allPages = pages[0].split(/\n/g)
-      .map(x => x.split(/\s{4,}/g)
-        .map(y => y.replace(/\s+/g, ' '))
-        .filter(Boolean)
-      ).filter(e => e.length);
+  const pathToPdf = path.join(__dirname, tmpTarget);
+  const extract = Promise.promisify(pdfExtract);
 
-    const info = {
-      'Title': allPages[0][0],
-      'Number of Registered Companies': allPages.length,
-      'Companies': [],
-    };
-    const th = allPages[1].map(trim);
-
-    log('Crawling pdf...');
-    let company, temp, i, j;
-    for (i = 2; i < allPages.length; i++) {
-      company = allPages[i];
-      temp = {};
-      for (j in th) temp[th[j]] = company[j];
-      info.Companies.push(temp);
-    }
-
-    let json = JSON.stringify(info, null, 2);
-    return json;
-  }
-
-  return rp(options)
-    .then(function(response) {
-      log('PDF requested.')
-      const buffer = Buffer.from(response);
-      const tmpTarget = 'temp.pdf';
-      fs.writeFileSync(tmpTarget, buffer)
-      log('PDF saved.');
-      const pathToPdf = path.join(__dirname, tmpTarget);
-      const extract = Promise.promisify(pdfExtract);
-      return (async function() {
-        log('Starting PDF extraction...');
-        let json = await extract(pathToPdf);
-        return json;
-      })();
-    })
-    .then((pages) => {
-      const json = crawlResult(null, pages);
-      const output = {
-        crawledAt: new Date(),
-        json,
-      };
-      console.log('My output:');
-      console.dir(output);
-      Apify.setValue('OUTPUT', output);
-      log('Finalizing...');
-    })
-    .finally(() => {
-      console.log('Finished.');
-    });
+  log('Starting PDF extraction...');
+  const pages = await extract(pathToPdf);
+  const json = crawlResult(pages);
+  const output = {
+    crawledAt: new Date(),
+    JSON: json,
+  };
+  console.log('My output:');
+  console.dir(output);
+  log('Setting output...');
+  return await Apify.setValue('OUTPUT', output);
 });
