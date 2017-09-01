@@ -2,14 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
 const Promise = require("bluebird");
-const request = require('request');
-const rp = require('request-promise');
 const pdfExtract = require('pdf-text-extract');
+const requestPromise = require('request-promise');
 
 // Helper functions
 const log = console.log;
-const trim = x => x.trim();
 
+// This function will vary on the formatting of each PDF.
 function crawlResult(pages) {
   log('Crawling pdf...');
   const allPages = pages[0].split(/\n/g)
@@ -23,7 +22,7 @@ function crawlResult(pages) {
     'Number of Registered Companies': allPages.length,
     'Companies': [],
   };
-  const th = allPages[1].map(trim);
+  const th = allPages[1].map(x => x.trim());
 
   let company, temp, i, j;
   for (i = 2; i < allPages.length; i++) {
@@ -33,7 +32,7 @@ function crawlResult(pages) {
     info.Companies.push(temp);
   }
 
-  const json = JSON.stringify(info);
+  // const json = JSON.stringify(info);
   return json;
 }
 
@@ -42,11 +41,11 @@ Apify.main(async () => {
   log('URL: ' + url);
   const options = {
     url,
-    encoding: null
+    encoding: null // if you expect binary data, set encoding to `null`.
   };
 
   log('Requesting URL...');
-  const response = await rp(options);
+  const response = await requestPromise(options);
   const buffer = Buffer.from(response);
   const tmpTarget = 'temp.pdf';
   log('Saving file to: ' + tmpTarget);
