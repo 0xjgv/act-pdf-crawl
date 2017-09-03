@@ -7,12 +7,16 @@
     "apify": "^0.4.18",
     "bluebird": "^3.5.0",
     "pdf-text-extract": "^1.5.0",
-    "request-promise": "^4.2.1"
+    "request-promise": "^4.2.1",
+    "type-check": "^0.3.2"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": {
+    "name": "Juan Sebastián Gaitán Villamizar",
+    "email": "juans.gaitan@gmail.com"
+  },
   "license": "ISC"
 }

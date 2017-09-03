@@ -18,16 +18,19 @@ const options = {
 };
 
 function crawlResult(err, text) {
+  // Test for Quokka Cmd + K, Q
+  text
+  err
   if (err) {
     console.dir(err);
     return;
   }
 
-  const allPages = text[0].split(/\n/g)
-    .map(x => x.split(/\s{4,}/g)
-      .map(y => y.replace(/\s+/g, ' '))
+  const allPages = text[0].split(/\n/g) 
+    .map(x => x.split(/\s{4,}/g) 
+      .map(y => y.replace(/\s+/g, ' ')) 
       .filter(Boolean)
-    ).filter(e => e.length);
+    ).filter(e => e.length); 
 
   const info = {
     'Title': allPages[0][0],

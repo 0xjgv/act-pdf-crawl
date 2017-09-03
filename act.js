@@ -2,16 +2,21 @@ const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
 const Promise = require("bluebird");
+const typeCheck = require('type-check');
 const pdfExtract = require('pdf-text-extract');
 const requestPromise = require('request-promise');
 
 // Helper functions
 const log = console.log;
 
+// Definition of the input
+const INPUT_TYPE = `{
+  url: String,
+}`;
+
 // This function will vary on the formatting of each PDF.
-function crawlResult(pages) {
-  log('Crawling pdf...');
-  const allPages = pages[0].split(/\n/g)
+function crawlResult(arr) {
+  const allPages = arr[0].split(/\n/g)
     .map(x => x.split(/\s{4,}/g)
       .map(y => y.replace(/\s+/g, ' '))
       .filter(Boolean)
@@ -31,22 +36,28 @@ function crawlResult(pages) {
     for (j in th) temp[th[j]] = company[j];
     info.Companies.push(temp);
   }
-
   // const json = JSON.stringify(info); // or return a JSON Object;
   return info;
 }
 
 Apify.main(async () => {
-  const { url } = await Apify.getValue('INPUT');
-  log('URL: ' + url);
+  // Fetch and check the input
+  const input = await Apify.getValue('INPUT');
+  if (!typeCheck(INPUT_TYPE, input)) {
+      console.error('Expected input:');
+      console.error(INPUT_TYPE);
+      console.error('Received input:');
+      throw new Error('Received invalid input');
+  }
   const options = {
-    url,
-    encoding: null // if you expect binary data, set encoding to `null`.
+    url: input.url,
+    encoding: null // set to `null`, if you expect binary data.
   };
 
-  log('Requesting URL...');
+  log('Requesting URL: ', input.url);
   const response = await requestPromise(options);
   const buffer = Buffer.from(response);
+
   const tmpTarget = 'temp.pdf';
   log('Saving file to: ' + tmpTarget);
   fs.writeFileSync(tmpTarget, buffer)
@@ -55,15 +66,18 @@ Apify.main(async () => {
   const pathToPdf = path.join(__dirname, tmpTarget);
   const extract = Promise.promisify(pdfExtract);
 
-  log('Starting PDF extraction...');
-  const pages = await extract(pathToPdf);
-  const json = crawlResult(pages);
+  log('Extracting PDF...');
+  const arrayOfPages = await extract(pathToPdf);
+  log('Crawling result...');
+  const json = crawlResult(arrayOfPages);
+
   const output = {
-    crawledAt: new Date(),
-    JSON: json,
+    actAt: new Date(),
+    actResult: json,
   };
-  console.log('My output:');
   console.dir(output);
-  log('Setting output...');
-  return await Apify.setValue('OUTPUT', output);
+
+  log('Setting OUTPUT...')
+  await Apify.setValue('OUTPUT', output);
+  log('Finished');
 });
