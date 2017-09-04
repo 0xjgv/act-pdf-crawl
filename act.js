@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
 const Promise = require("bluebird");
-const typeCheck = require('type-check');
+const { typeCheck } = require('type-check');
 const pdfExtract = require('pdf-text-extract');
 const requestPromise = require('request-promise');
 
