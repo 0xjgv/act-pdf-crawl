@@ -7,7 +7,7 @@ const pdfExtract = require('pdf-text-extract');
 const requestPromise = require('request-promise');
 
 // Helper functions
-const log = console.log;
+const { log, dir, error } = console;
 
 // Definition of the input
 const INPUT_TYPE = `{
@@ -20,20 +20,24 @@ function crawlResult(arr) {
     .map(x => x.split(/\s{4,}/g)
       .map(y => y.replace(/\s+/g, ' '))
       .filter(Boolean)
-    ).filter(e => e.length);
+      .filter(e => e.length));
 
   const info = {
-    'Title': allPages[0][0],
+    Title: allPages[0][0],
     'Number of Registered Companies': allPages.length,
-    'Companies': [],
+    Companies: [],
   };
-  const th = allPages[1].map(x => x.trim());
 
-  let company, temp, i, j;
-  for (i = 2; i < allPages.length; i++) {
+  const th = allPages[3].map(x => x.trim());
+
+  let company;
+  let temp;
+  for (let i = 4; i < allPages.length; i += 1) {
     company = allPages[i];
     temp = {};
-    for (j in th) temp[th[j]] = company[j];
+    for (let j = 0; j < th.length; j += 1) {
+      temp[th[j]] = company[j];
+    }
     info.Companies.push(temp);
   }
   // const json = JSON.stringify(info); // or return a JSON Object;
@@ -42,26 +46,32 @@ function crawlResult(arr) {
 
 Apify.main(async () => {
   // Fetch and check the input
+
   const input = await Apify.getValue('INPUT');
   if (!typeCheck(INPUT_TYPE, input)) {
-      console.error('Expected input:');
-      console.error(INPUT_TYPE);
-      console.error('Received input:');
-      throw new Error('Received invalid input');
+    error('Expected input:');
+    error(INPUT_TYPE);
+    error('Received input:');
+    throw new Error('Received invalid input');
   }
+
   const options = {
-    url: input.url,
-    encoding: null // set to `null`, if you expect binary data.
+    url: 'http://www.ripuc.org/utilityinfo/electric/NPP_List.pdf',
+    // set to `null`, if you expect binary data.
+    encoding: null,
   };
 
-  log('Requesting URL: ', input.url);
+  log('Requesting URL: ', options.url);
   const response = await requestPromise(options);
   const buffer = Buffer.from(response);
 
   const tmpTarget = 'temp.pdf';
-  log('Saving file to: ' + tmpTarget);
-  fs.writeFileSync(tmpTarget, buffer)
-  log('File saved.');
+
+  log(`Saving file to: ${tmpTarget}`);
+  fs.writeFile(tmpTarget, buffer, (err) => {
+    if (err) throw new Error(err);
+    log('File saved.');
+  });
 
   const pathToPdf = path.join(__dirname, tmpTarget);
   const extract = Promise.promisify(pdfExtract);
@@ -75,9 +85,9 @@ Apify.main(async () => {
     actAt: new Date(),
     actResult: json,
   };
-  console.dir(output);
+  dir(JSON.stringify(output));
 
-  log('Setting OUTPUT...')
+  log('Setting OUTPUT...');
   await Apify.setValue('OUTPUT', output);
   log('Finished');
 });
