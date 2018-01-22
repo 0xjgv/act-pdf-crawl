@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
-const Promise = require("bluebird");
+const Promise = require('bluebird');
 const { typeCheck } = require('type-check');
 const pdfExtract = require('pdf-text-extract');
 const requestPromise = require('request-promise');
@@ -25,7 +25,7 @@ function crawlResult(arr) {
   const info = {
     Title: allPages[0][0],
     'Number of Registered Companies': allPages.length,
-    Companies: [],
+    Companies: []
   };
 
   const th = allPages[3].map(x => x.trim());
@@ -58,7 +58,7 @@ Apify.main(async () => {
   const options = {
     url: 'http://www.ripuc.org/utilityinfo/electric/NPP_List.pdf',
     // set to `null`, if you expect binary data.
-    encoding: null,
+    encoding: null
   };
 
   log('Requesting URL: ', options.url);
@@ -83,7 +83,7 @@ Apify.main(async () => {
 
   const output = {
     actAt: new Date(),
-    actResult: json,
+    actResult: json
   };
   dir(JSON.stringify(output));
 

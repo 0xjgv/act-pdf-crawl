@@ -4,11 +4,8 @@
   "description": "",
   "main": "pdf.js",
   "dependencies": {
-    "apify": "^0.4.18",
-    "bluebird": "^3.5.0",
-    "pdf-text-extract": "^1.5.0",
-    "request-promise": "^4.2.1",
-    "type-check": "^0.3.2"
+    "bluebird": "^3.5.1",
+    "pdf-text-extract": "^1.5.0"
   },
   "devDependencies": {},
   "scripts": {
