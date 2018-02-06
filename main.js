@@ -13,7 +13,7 @@ const removeEmpty = array => array.reduce((acc, cur) => {
   if (Array.isArray(cur)) {
     const deep = removeEmpty(cur);
     if (deep.length) {
-      acc.push(removeEmpty(cur));
+      acc.push(deep);
     }
   } else if (!/^\s*$/.test(cur)) {
     acc.push(cur);
@@ -104,6 +104,11 @@ Apify.main(async () => {
   }
   const allPages = removeEmpty(pages);
   log(`Found ${allPages.length} page${allPages.length > 1 ? 's' : ''}`);
+
+  // left here
+  // Attach column heads to each result
+  // Check Hynek's OUTPUT
+  // https://api.apify.com/v1/execs/Gp2sgPzQE5nukKB7o/results?format=json&simplified=1
 
   return null;
 
