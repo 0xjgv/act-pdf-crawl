@@ -2,33 +2,51 @@ const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
 const Promise = require('bluebird');
-const { typeCheck } = require('type-check');
-const pdfExtract = require('pdf-text-extract');
+const pdfToTable = require('pdf-table-extractor');
 const requestPromise = require('request-promise');
 
-// Helper functions
-const { log, dir, error } = console;
+// const pdfExtract = require('pdf-text-extract');
 
-// Definition of the input
-const INPUT_TYPE = `{
-  url: String,
-}`;
+const { log, dir } = console;
 
-// This function will vary on the formatting of each PDF.
-function crawlResult(arr) {
-  const allPages = arr[0].split(/\n/g)
-    .map(x => x.split(/\s{4,}/g)
-      .map(y => y.replace(/\s+/g, ' '))
-      .filter(Boolean)
-      .filter(e => e.length));
+const removeEmpty = array => array.reduce((acc, cur) => {
+  if (Array.isArray(cur)) {
+    const deep = removeEmpty(cur);
+    if (deep.length) {
+      acc.push(removeEmpty(cur));
+    }
+  } else if (!/^\s*$/.test(cur)) {
+    acc.push(cur);
+  }
+  return acc;
+}, []);
 
+// Automate with natural BayesClassifier
+function crawlResult(array) {
+  log(`Found ${array.length} page${array.length > 1 ? 's' : ''}`);
+  const allPages = array.map(arr =>
+    arr.split(/\n/g).reduce((acc, line) => {
+      if (line) {
+        acc.push(line.trim());
+      }
+      return acc;
+    }, []));
+
+  // The first page contains the main information or is blank
+  const [firstPage, ...morePages] = allPages;
+  log(morePages.length);
+
+  // Pair rows in the PDF table together and train
+
+  log(firstPage);
+
+  const [title] = firstPage;
   const info = {
-    Title: allPages[0][0],
-    'Number of Registered Companies': allPages.length,
-    Companies: []
+    title,
+    companies: []
   };
 
-  const th = allPages[3].map(x => x.trim());
+  const th = firstPage[3].map(x => x.trim());
 
   let company;
   let temp;
@@ -40,24 +58,18 @@ function crawlResult(arr) {
     }
     info.Companies.push(temp);
   }
-  // const json = JSON.stringify(info); // or return a JSON Object;
   return info;
 }
 
 Apify.main(async () => {
-  // Fetch and check the input
+  const { url } = await Apify.getValue('INPUT');
 
-  const input = await Apify.getValue('INPUT');
-  if (!typeCheck(INPUT_TYPE, input)) {
-    error('Expected input:');
-    error(INPUT_TYPE);
-    error('Received input:');
-    throw new Error('Received invalid input');
+  if (!url) {
+    throw new Error('Missing URL in INPUT!');
   }
 
   const options = {
-    url: 'http://www.ripuc.org/utilityinfo/electric/NPP_List.pdf',
-    // set to `null`, if you expect binary data.
+    url,
     encoding: null
   };
 
@@ -68,18 +80,37 @@ Apify.main(async () => {
   const tmpTarget = 'temp.pdf';
 
   log(`Saving file to: ${tmpTarget}`);
-  fs.writeFile(tmpTarget, buffer, (err) => {
-    if (err) throw new Error(err);
+  try {
+    await fs.writeFileSync(tmpTarget, buffer);
     log('File saved.');
-  });
+  } catch (err) {
+    throw new Error(err);
+  }
 
   const pathToPdf = path.join(__dirname, tmpTarget);
-  const extract = Promise.promisify(pdfExtract);
+  // const extract = Promise.promisify(pdfExtract);
 
   log('Extracting PDF...');
-  const arrayOfPages = await extract(pathToPdf);
-  log('Crawling result...');
-  const json = crawlResult(arrayOfPages);
+  // const arrayOfPages = await extract(pathToPdf);
+  let pages;
+  try {
+    const { pageTables } = await new Promise((resolve, reject) => {
+      pdfToTable(pathToPdf, resolve, reject);
+    });
+    pages = pageTables.map(({ tables: tbs }) => tbs);
+  } catch (err) {
+    log('Error while extracting to table:', err);
+    return null;
+  }
+  const allPages = removeEmpty(pages);
+  log(`Found ${allPages.length} page${allPages.length > 1 ? 's' : ''}`);
+
+  return null;
+
+  // Split by large spaces
+
+  // log('Crawling result...');
+  // const json = crawlResult(arrayOfPages);
 
   const output = {
     actAt: new Date(),
@@ -89,5 +120,5 @@ Apify.main(async () => {
 
   log('Setting OUTPUT...');
   await Apify.setValue('OUTPUT', output);
-  log('Finished');
+  log('Done.');
 });

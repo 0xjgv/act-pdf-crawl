@@ -1,3 +1,3 @@
-# act-pdf-crawl
+# Act-pdf
 
-Apify.com Act that extracts text from a PDF files. 
+Apify **act** that extracts text from a PDF files. 
