@@ -1,13 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
-const Promise = require('bluebird');
 const pdfToTable = require('pdf-table-extractor');
+const webpack = require('webpack');
 const requestPromise = require('request-promise');
 
-// const pdfExtract = require('pdf-text-extract');
-
-const { log, dir } = console;
+const { log } = console;
 
 const removeEmpty = array => array.reduce((acc, cur) => {
   if (Array.isArray(cur)) {
@@ -36,46 +34,6 @@ const parseRows = (headers, rows) => (
   ))
 );
 
-// Automate with natural BayesClassifier
-function crawlResult(array) {
-  log(`Found ${array.length} page${array.length > 1 ? 's' : ''}`);
-  const allPages = array.map(arr =>
-    arr.split(/\n/g).reduce((acc, line) => {
-      if (line) {
-        acc.push(line.trim());
-      }
-      return acc;
-    }, []));
-
-  // The first page contains the main information or is blank
-  const [firstPage, ...morePages] = allPages;
-  log(morePages.length);
-
-  // Pair rows in the PDF table together and train
-
-  log(firstPage);
-
-  const [title] = firstPage;
-  const info = {
-    title,
-    companies: []
-  };
-
-  const th = firstPage[3].map(x => x.trim());
-
-  let company;
-  let temp;
-  for (let i = 4; i < allPages.length; i += 1) {
-    company = allPages[i];
-    temp = {};
-    for (let j = 0; j < th.length; j += 1) {
-      temp[th[j]] = company[j];
-    }
-    info.Companies.push(temp);
-  }
-  return info;
-}
-
 Apify.main(async () => {
   const { queryUrl } = await Apify.getValue('INPUT');
 
@@ -84,11 +42,11 @@ Apify.main(async () => {
   }
 
   const options = {
-    queryUrl,
+    uri: queryUrl,
     encoding: null
   };
 
-  log('Requesting URL: ', options.queryUrl);
+  log('Requesting URL: ', options.uri);
   const response = await requestPromise(options);
   const buffer = Buffer.from(response);
 
@@ -103,10 +61,8 @@ Apify.main(async () => {
   }
 
   const pathToPdf = path.join(__dirname, tmpTarget);
-  // const extract = Promise.promisify(pdfExtract);
 
   log('Extracting PDF...');
-  // const arrayOfPages = await extract(pathToPdf);
   let pages;
   try {
     const { pageTables } = await new Promise((resolve, reject) => {
@@ -114,36 +70,30 @@ Apify.main(async () => {
     });
     pages = pageTables.map(({ tables: tbs }) => tbs);
   } catch (err) {
-    log('Error while extracting to table:', err);
-    return null;
+    throw new Error('while extracting to table', err);
   }
   const parsedPages = removeEmpty(pages);
-  const [firstPage] = parsedPages;
   log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
 
+  const [firstPage] = parsedPages;
   const [headers] = firstPage;
   log(headers);
 
   const allRows = [].concat(...parsedPages);
 
   // Check Hynek's OUTPUT
+  // Use it to train the classifier
   // https://api.apify.com/v1/execs/Gp2sgPzQE5nukKB7o/results?format=json&simplified=1
 
   const headerCheck = headers.join('');
-  const filteredHeaders = allRows.filter(row => (
+  const filteredRows = allRows.filter(row => (
     row.join('') !== headerCheck
   ));
 
-  const result = parseRows(headers, filteredHeaders);
-  log(result);
-
-  const output = {
-    actAt: new Date(),
-    actResult: JSON.stringify(result, null, 2)
-  };
+  const output = parseRows(headers, filteredRows);
 
   log('Setting OUTPUT...');
   await Apify.setValue('OUTPUT', output);
+
   log('Done.');
-  return null;
 });

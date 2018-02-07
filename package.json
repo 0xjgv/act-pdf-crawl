@@ -4,9 +4,7 @@
   "description": "",
   "main": "pdf.js",
   "dependencies": {
-    "bluebird": "^3.5.1",
-    "pdf-table-extractor": "^1.0.3",
-    "pdf-text-extract": "^1.5.0"
+    "pdf-table-extractor": "^1.0.3"
   },
   "devDependencies": {},
   "scripts": {
