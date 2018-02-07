@@ -24,13 +24,12 @@ const removeEmpty = array => array.reduce((acc, cur) => {
 const parseRows = (headers, rows) => (
   rows.map(row => (
     headers.reduce((obj, header, i) => {
-      let current = row[i];
+      let current = row[i] || row[i + 1] || '\n';
       if (current.includes('\n')) {
         current = current.split('\n');
       } else {
-        current = [current];
+        current = [].concat(current);
       }
-      log(current);
       const output = removeEmpty(current);
       return Object.assign(obj, { [header]: output });
     }, {})
@@ -78,18 +77,18 @@ function crawlResult(array) {
 }
 
 Apify.main(async () => {
-  const { url } = await Apify.getValue('INPUT');
+  const { queryUrl } = await Apify.getValue('INPUT');
 
-  if (!url) {
+  if (!queryUrl) {
     throw new Error('Missing URL in INPUT!');
   }
 
   const options = {
-    url,
+    queryUrl,
     encoding: null
   };
 
-  log('Requesting URL: ', options.url);
+  log('Requesting URL: ', options.queryUrl);
   const response = await requestPromise(options);
   const buffer = Buffer.from(response);
 
@@ -122,17 +121,20 @@ Apify.main(async () => {
   const [firstPage] = parsedPages;
   log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
 
-  // split each index into a column
-  const [headers, ...firstPageRest] = firstPage;
+  const [headers] = firstPage;
   log(headers);
 
-  // Flatten all pages into a an array of rows.
-  const allPages = [...firstPageRest, [].concat(...parsedPages)];
+  const allRows = [].concat(...parsedPages);
 
   // Check Hynek's OUTPUT
   // https://api.apify.com/v1/execs/Gp2sgPzQE5nukKB7o/results?format=json&simplified=1
 
-  const result = parseRows(headers, allPages);
+  const headerCheck = headers.join('');
+  const filteredHeaders = allRows.filter(row => (
+    row.join('') !== headerCheck
+  ));
+
+  const result = parseRows(headers, filteredHeaders);
   log(result);
 
   const output = {
@@ -143,4 +145,5 @@ Apify.main(async () => {
   log('Setting OUTPUT...');
   await Apify.setValue('OUTPUT', output);
   log('Done.');
+  return null;
 });
