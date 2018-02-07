@@ -16,10 +16,26 @@ const removeEmpty = array => array.reduce((acc, cur) => {
       acc.push(deep);
     }
   } else if (!/^\s*$/.test(cur)) {
-    acc.push(cur);
+    acc.push(cur.trim());
   }
   return acc;
 }, []);
+
+const parseRows = (headers, rows) => (
+  rows.map(row => (
+    headers.reduce((obj, header, i) => {
+      let current = row[i];
+      if (current.includes('\n')) {
+        current = current.split('\n');
+      } else {
+        current = [current];
+      }
+      log(current);
+      const output = removeEmpty(current);
+      return Object.assign(obj, { [header]: output });
+    }, {})
+  ))
+);
 
 // Automate with natural BayesClassifier
 function crawlResult(array) {
@@ -102,26 +118,27 @@ Apify.main(async () => {
     log('Error while extracting to table:', err);
     return null;
   }
-  const allPages = removeEmpty(pages);
-  log(`Found ${allPages.length} page${allPages.length > 1 ? 's' : ''}`);
+  const parsedPages = removeEmpty(pages);
+  const [firstPage] = parsedPages;
+  log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
 
-  // left here
-  // Attach column heads to each result
+  // split each index into a column
+  const [headers, ...firstPageRest] = firstPage;
+  log(headers);
+
+  // Flatten all pages into a an array of rows.
+  const allPages = [...firstPageRest, [].concat(...parsedPages)];
+
   // Check Hynek's OUTPUT
   // https://api.apify.com/v1/execs/Gp2sgPzQE5nukKB7o/results?format=json&simplified=1
 
-  return null;
-
-  // Split by large spaces
-
-  // log('Crawling result...');
-  // const json = crawlResult(arrayOfPages);
+  const result = parseRows(headers, allPages);
+  log(result);
 
   const output = {
     actAt: new Date(),
-    actResult: json
+    actResult: JSON.stringify(result, null, 2)
   };
-  dir(JSON.stringify(output));
 
   log('Setting OUTPUT...');
   await Apify.setValue('OUTPUT', output);
