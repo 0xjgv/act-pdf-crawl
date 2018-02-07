@@ -2,10 +2,16 @@ const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
 const pdfToTable = require('pdf-table-extractor');
-const webpack = require('webpack');
 const requestPromise = require('request-promise');
 
 const { log } = console;
+
+try {
+  const webpack = require('webpack');
+} catch (err) {
+  log('Local development.');
+}
+
 
 const removeEmpty = array => array.reduce((acc, cur) => {
   if (Array.isArray(cur)) {
@@ -76,7 +82,8 @@ Apify.main(async () => {
   log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
 
   const [firstPage] = parsedPages;
-  const [headers] = firstPage;
+  let [headers] = firstPage;
+  headers = headers.map(header => header.replace(/\s+/g, ''));
   log(headers);
 
   const allRows = [].concat(...parsedPages);
