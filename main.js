@@ -52,18 +52,23 @@ Apify.main(async () => {
     encoding: null
   };
 
-  log('Requesting URL: ', options.uri);
-  const response = await requestPromise(options);
-  const buffer = Buffer.from(response);
-
   const tmpTarget = 'temp.pdf';
 
-  log(`Saving file to: ${tmpTarget}`);
-  try {
-    await fs.writeFileSync(tmpTarget, buffer);
-    log('File saved.');
-  } catch (err) {
-    throw new Error(err);
+  let buffer = fs.readFileSync(tmpTarget);
+
+  if (buffer) {
+    log('File already saved found.');
+  } else {
+    log('Requesting URL: ', options.uri);
+    const response = await requestPromise(options);
+    buffer = Buffer.from(response);
+    log(`Saving file to: ${tmpTarget}`);
+    try {
+      await fs.writeFileSync(tmpTarget, buffer);
+      log('File saved.');
+    } catch (err) {
+      throw new Error(err);
+    }
   }
 
   const pathToPdf = path.join(__dirname, tmpTarget);
@@ -81,12 +86,8 @@ Apify.main(async () => {
   const parsedPages = removeEmpty(pages);
   log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
 
-  const [firstPage] = parsedPages;
-  let [headers] = firstPage;
-  headers = headers.map(header => header.replace(/\s+/g, ''));
+  const [headers, ...allRows] = [].concat(...parsedPages);
   log(headers);
-
-  const allRows = [].concat(...parsedPages);
 
   // Check Hynek's OUTPUT
   // Use it to train the classifier
@@ -94,7 +95,7 @@ Apify.main(async () => {
 
   const headerCheck = headers.join('');
   const filteredRows = allRows.filter(row => (
-    row.join('') !== headerCheck
+    row.join('').trim() !== headerCheck.trim()
   ));
 
   const output = parseRows(headers, filteredRows);

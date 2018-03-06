@@ -8,6 +8,7 @@
   },
   "devDependencies": {},
   "scripts": {
+    "training": "export APIFY_DEV_KEY_VALUE_STORE_DIR=./kv-store-dev/|| set APIFY_DEV_KEY_VALUE_STORE_DIR=./kv-store-dev/&& node classifier.js",
     "local": "export APIFY_DEV_KEY_VALUE_STORE_DIR=./kv-store-dev/|| set APIFY_DEV_KEY_VALUE_STORE_DIR=./kv-store-dev/&& node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
