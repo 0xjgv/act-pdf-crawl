@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const Apify = require('apify');
-const pdfToTable = require('pdf-table-extractor');
+const { promisify } = require('util');
+const pdf2Table = require('pdf2table');
 const requestPromise = require('request-promise');
 
 const { log } = console;
@@ -12,21 +13,21 @@ try {
   log('Local development.');
 }
 
-
-const removeEmpty = array => array.reduce((acc, cur) => {
-  if (Array.isArray(cur)) {
-    const deep = removeEmpty(cur);
-    if (deep.length) {
-      acc.push(deep);
+const removeEmpty = (array) =>
+  array.reduce((acc, cur) => {
+    if (Array.isArray(cur)) {
+      const deep = removeEmpty(cur);
+      if (deep.length) {
+        acc.push(deep);
+      }
+    } else if (!/^\s*$/.test(cur)) {
+      acc.push(cur.trim());
     }
-  } else if (!/^\s*$/.test(cur)) {
-    acc.push(cur.trim());
-  }
-  return acc;
-}, []);
+    return acc;
+  }, []);
 
-const parseRows = (headers, rows) => (
-  rows.map(row => (
+const parseRows = (headers, rows) =>
+  rows.map((row) =>
     headers.reduce((obj, header, i) => {
       let current = row[i] || row[i + 1] || '\n';
       if (current.includes('\n')) {
@@ -37,14 +38,13 @@ const parseRows = (headers, rows) => (
       const output = removeEmpty(current);
       return Object.assign(obj, { [header]: output });
     }, {})
-  ))
-);
+  );
 
 Apify.main(async () => {
   const { queryUrl } = await Apify.getValue('INPUT');
 
   if (!queryUrl) {
-    throw new Error('Missing URL in INPUT!');
+    throw Error('Missing URL in INPUT!');
   }
 
   const options = {
@@ -52,39 +52,53 @@ Apify.main(async () => {
     encoding: null
   };
 
-  const tmpTarget = 'temp.pdf';
+  const tmpTarget = 'med.pdf';
 
-  let buffer = fs.readFileSync(tmpTarget);
+  let pdfBuffer = fs.readFileSync(tmpTarget);
 
-  if (buffer) {
+  if (pdfBuffer) {
     log('File already saved found.');
   } else {
     log('Requesting URL: ', options.uri);
     const response = await requestPromise(options);
-    buffer = Buffer.from(response);
+    pdfBuffer = Buffer.from(response);
     log(`Saving file to: ${tmpTarget}`);
     try {
-      await fs.writeFileSync(tmpTarget, buffer);
+      await fs.writeFileSync(tmpTarget, pdfBuffer);
       log('File saved.');
     } catch (err) {
-      throw new Error(err);
+      throw Error(err);
     }
   }
 
   const pathToPdf = path.join(__dirname, tmpTarget);
+  console.log(pathToPdf);
 
-  log('Extracting PDF...');
+  const extractPdf = promisify(pdf2Table.parse);
   let pages;
   try {
-    const { pageTables } = await new Promise((resolve, reject) => {
-      pdfToTable(pathToPdf, resolve, reject);
+    pages = await new Promise((resolve, reject) => {
+      fs.readFile(pathToPdf, async (error, buffer) => {
+        if (error) reject(error);
+        log('Extracting PDF...');
+        try {
+          const row = await extractPdf(buffer);
+          resolve(row);
+        } catch (err) {
+          reject(err);
+        }
+      });
     });
-    pages = pageTables.map(({ tables: tbs }) => tbs);
+    console.log(pages.slice(500));
   } catch (err) {
-    throw new Error('while extracting to table', err);
+    throw Error('while extracting to table', err);
   }
+  return;
+
   const parsedPages = removeEmpty(pages);
-  log(`Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`);
+  log(
+    `Found ${parsedPages.length} page${parsedPages.length > 1 ? 's' : ''}`
+  );
 
   const [headers, ...allRows] = [].concat(...parsedPages);
   log(headers);
@@ -94,9 +108,9 @@ Apify.main(async () => {
   // https://api.apify.com/v1/execs/Gp2sgPzQE5nukKB7o/results?format=json&simplified=1
 
   const headerCheck = headers.join('');
-  const filteredRows = allRows.filter(row => (
-    row.join('').trim() !== headerCheck.trim()
-  ));
+  const filteredRows = allRows.filter(
+    (row) => row.join('').trim() !== headerCheck.trim()
+  );
 
   const output = parseRows(headers, filteredRows);
 

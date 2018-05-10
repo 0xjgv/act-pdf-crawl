@@ -1,6 +1,6 @@
-const Apify = require('apify');
-const natural = require('natural');
-const request = require('request-promise');
+const Apify = require('apify'); // eslint-disable-line
+const natural = require('natural'); // eslint-disable-line
+const request = require('request-promise'); // eslint-disable-line
 
 const { log } = console;
 
@@ -29,7 +29,7 @@ Apify.main(async () => {
     throw new Error('data INPUT is required.');
   }
 
-  let data = require('./data.json');
+  let data = require('./data.json'); // eslint-disable-line
   if (!data.length) {
     const dataRequest = request(input.data);
     data = JSON.parse(await dataRequest);
@@ -65,17 +65,16 @@ Apify.main(async () => {
   }
 
   // Train
-  let trainingCount = 0;
-  if (data.length) {
+  if (data.length && isTrained) {
     log('Data found:', data.length);
-    // Reduce the size of the data to train. O(n^2) complexity.
+    console.time('training');
     train(data);
+
+    // Reduce the size of the data to train. O(n^2) complexity.
     Object.keys(keysAndValues).forEach((key) => {
-      trainingCount += 1;
-      log('Training:', trainingCount);
+      log('Training:', key);
       // Reduce the training data size
       const values = [...new Set(keysAndValues[key])].slice(0, 30);
-      log(values, key);
 
       values.forEach((val) => {
         logistic.addDocument(val, key);
@@ -84,6 +83,7 @@ Apify.main(async () => {
     });
     logistic.train();
     bayes.train();
+    console.timeEnd('training');
   }
 
   const examples = ['03/5/2018', 'active', 'IL', 'MA'];

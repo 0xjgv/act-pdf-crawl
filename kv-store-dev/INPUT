@@ -1,4 +1,3 @@
 { 
-  "queryUrl": "http://www.state.nj.us/bpu/pdf/energy/shopping_forms/connectivterritory.pdf",
-  "data": "https://api.apify.com/v2/key-value-stores/zxdX4s6WFEd9NZspD/records/IL-diffdata-2018-02-18?disableRedirect=true" 
+  "queryUrl": "http://www.ramq.gouv.qc.ca/SiteCollectionDocuments/liste_med/liste_med_2018_04_18_en.pdf"
 }
